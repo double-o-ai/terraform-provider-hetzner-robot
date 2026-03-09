@@ -16,16 +16,21 @@ func resourceServerOrder() *schema.Resource {
 		ReadContext:   resourceServerOrderRead,
 		DeleteContext: resourceServerOrderDelete,
 
+		Importer: &schema.ResourceImporter{
+			StateContext: resourceServerOrderImportState,
+		},
+
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(60 * time.Minute),
 			Delete: schema.DefaultTimeout(10 * time.Minute),
 		},
 
 		Schema: map[string]*schema.Schema{
-			// Required input
+			// Required for new orders, computed on import
 			"product_id": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
+				Computed:    true,
 				ForceNew:    true,
 				Description: "Product ID to order (e.g. 'AX102' for standard, or market product ID as string)",
 			},
@@ -107,6 +112,32 @@ func resourceServerOrder() *schema.Resource {
 			},
 		},
 	}
+}
+
+func resourceServerOrderImportState(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	c := meta.(HetznerRobotClient)
+
+	serverNumber, err := strconv.Atoi(d.Id())
+	if err != nil {
+		return nil, fmt.Errorf("invalid server number %q: %w", d.Id(), err)
+	}
+
+	server, err := c.getServer(ctx, serverNumber)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find server %d: %w", serverNumber, err)
+	}
+
+	d.Set("server_number", server.ServerNumber)
+	d.Set("server_ip", server.ServerIP)
+	d.Set("server_ipv6", server.ServerIPv6)
+	d.Set("server_name", server.ServerName)
+	d.Set("product", server.Product)
+	d.Set("product_id", server.Product)
+	d.Set("datacenter", server.DataCenter)
+	d.Set("status", server.Status)
+	d.Set("is_cancelled", server.Cancelled)
+
+	return []*schema.ResourceData{d}, nil
 }
 
 func resourceServerOrderCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
