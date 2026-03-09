@@ -1,4 +1,4 @@
-module github.com/strng-solutions/terraform-provider-hetzner-robot
+module github.com/double-o-ai/terraform-provider-hetzner-robot
 
 go 1.22.4
 
